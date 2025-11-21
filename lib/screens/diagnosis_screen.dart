@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'dart:io';
+import 'package:image/image.dart' as img;
 import '../services/diagnosis_service.dart';
 
 class DiagnosisScreen extends StatefulWidget {
@@ -30,24 +32,72 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
     setState(() {});
   }
 
+  Future<List> preprocessImage(String imagePath) async {
+    final bytes = await File(imagePath).readAsBytes();
+    img.Image? image = img.decodeImage(bytes);
+    img.Image resized = img.copyResize(image!, width: 224, height: 224);
+
+    List input = List.generate(
+      1,
+      (_) => List.generate(
+        224,
+        (y) => List.generate(
+          224,
+          (x) => List.generate(3, (c) {
+            final pixelObj = resized.getPixelSafe(
+              x,
+              y,
+            ); // Pixel class (image >= 4.x)
+            double value;
+            switch (c) {
+              case 0:
+                value = pixelObj.r.toDouble();
+                break; // Red
+              case 1:
+                value = pixelObj.g.toDouble();
+                break; // Green
+              case 2:
+                value = pixelObj.b.toDouble();
+                break; // Blue
+              default:
+                value = 0.0;
+            }
+            return value / 255.0;
+          }),
+        ),
+      ),
+    );
+    return input;
+  }
+
   Future<void> _captureAndDiagnose() async {
     setState(() {
       loading = true;
     });
     final image = await _cameraController?.takePicture();
 
-    // Aquí deberías cargar/processar la imagen como input de tu modelo
-    // Ejemplo pseudo-proceso:
-    // List input = await preprocessImage(image!.path);
-    // String result = await diagnosisService.predict(input);
+    if (image == null) {
+      setState(() {
+        diagnosisResult = 'Error capturando imagen';
+        loading = false;
+      });
+      return;
+    }
 
-    String result =
-        '[simulate: healthy/rust/cercospora]'; // temporal para debug
+    try {
+      List input = await preprocessImage(image.path);
+      String result = await diagnosisService.predict(input);
 
-    setState(() {
-      diagnosisResult = result;
-      loading = false;
-    });
+      setState(() {
+        diagnosisResult = result;
+        loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        diagnosisResult = 'Error en inferencia: $e';
+        loading = false;
+      });
+    }
   }
 
   @override
@@ -62,7 +112,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
       return Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return Scaffold(
-      appBar: AppBar(title: Text('Diagnóstico Café Santander')),
+      appBar: AppBar(title: Text('Diagnóstico Café RMR')),
       body: Column(
         children: [
           Expanded(child: CameraPreview(_cameraController!)),
