@@ -1,0 +1,2 @@
+miner_img_xml
+rust_xml_image

@@ -13,6 +13,7 @@ dependencies:
   tflite_flutter: ^0.9.0
   image: ^4.0.0
   path_provider: ^2.0.11
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -21,4 +22,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/
+    - assets/model.tflite
+    - assets/labels.txt
